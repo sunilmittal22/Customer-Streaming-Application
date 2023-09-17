@@ -1,0 +1,302 @@
+Author	: Yogesh Deshpande
+Email	: yldeshpande@gmail.com
+Purpose	: Setup Hadoop, Spark, Jupytet notebook, KAFKA on WSL Ubuntu
+
+1. Enable WSL on Windows:
+   https://www.makeuseof.com/enable-windows-subsystem-for-linux/
+   https://learn.microsoft.com/en-us/windows/wsl/install-manual#step-4---download-the-linux-kernel-update-package
+   
+   Execute below on Windows Power Shell
+   
+   dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+   
+   wsl.exe --update
+   
+   wsl --set-default-version 2
+   
+2. Install Ubuntu 22.04 from Microsoft Store
+
+3. Setup user as once Ubuntu is installed, it prompts to setup
+
+4. sudo apt update
+
+5. apt list --upgradable
+
+6. sudo apt install default-jdk
+
+7.  java -version
+
+8.  sudo adduser hadoopuser
+	hadoopuser/hadoopuser
+	
+9. Setup SSH
+	To get the ssh server working properly, you must uninstall and then reinstall it using the following command:
+	
+	sudo apt remove openssh-server
+	
+	sudo apt install openssh-server
+	
+	sudo vi /etc/ssh/sshd_config
+		- Change PasswordAuthentication to yes
+		- Add your login user to the bottom of the file by using this command: AllowUsers hadoopuser
+	
+	Check the status of the ssh service:
+		service ssh status
+		If you see:  * sshd is not running
+		Then run this command:
+		sudo service ssh start
+		If you see: * sshd is running
+		Then run this command:
+		sudo service ssh --full-restart
+
+10. Switch user to hadoopuser: su - hadoopuser
+
+11. Enabling Passwordless SSH for a Hadoop User
+	ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+	
+	cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+	
+	chmod 0600 ~/.ssh/authorized_keys
+	
+	ssh localhost
+	
+12.	Set JAVA_HOME
+	readlink -f /usr/bin/javac
+	
+	vi .bashrc
+	
+	- Add this line/output of above command as JAVA_HOME
+	export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+	
+	source .bashrc
+	
+
+13.	Download & setup Hadoop
+	wget https://archive.apache.org/dist/hadoop/common/hadoop-3.2.3/hadoop-3.2.3.tar.gz
+	
+	tar xzf hadoop-3.2.3.tar.gz
+	
+14. Add User to the Sudoers Group
+	- Switch to root user - yogesh
+	sudo usermod -aG sudo hadoopuser
+	
+15. Switch back to hadoopuser
+	su - hadoopuser
+
+16. Configure Hadoop Environment
+
+	A) ~/.bashrc
+		- Hadoop Variables
+		export HADOOP_HOME=/home/hadoopuser/hadoop-3.2.3
+		export HADOOP_INSTALL=$HADOOP_HOME
+		export HADOOP_MAPRED_HOME=$HADOOP_HOME
+		export HADOOP_COMMON_HOME=$HADOOP_HOME
+		export HADOOP_HDFS_HOME=$HADOOP_HOME
+		export YARN_HOME=$HADOOP_HOME
+		export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+		export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+		export HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib/native"
+		export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+	
+	B) hadoop-env.sh
+		sudo vi $HADOOP_HOME/etc/hadoop/hadoop-env.sh
+		export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+		
+	C) core-site.xml
+		sudo vi $HADOOP_HOME/etc/hadoop/core-site.xml
+		
+		<configuration>
+				<property>
+						<name>hadoop.tmp.dir</name>
+						<value>/home/hadoop/tmpdata</value>
+				</property>
+				<property>
+						<name>fs.default.name</name>
+						<value>hdfs://127.0.0.1:9000</value>
+				</property>
+		</configuration>	
+	
+	D) hdfs-site.xml
+		sudo vi $HADOOP_HOME/etc/hadoop/hdfs-site.xml
+		<configuration>
+				<property>
+						<name>dfs.data.dir</name>
+						<value>/home/hadoopuser/dfsdata/namenode</value>
+				</property>
+				<property>
+						<name>dfs.data.dir</name>
+						<value>/home/hadoopuser/dfsdata/datanode</value>
+				</property>
+				<property>
+						<name>dfs.replication</name>
+						<value>1</value>
+				</property>
+		</configuration>	
+	
+	E) mapred-site-xml
+		sudo vi $HADOOP_HOME/etc/hadoop/mapred-site.xml
+		<configuration>
+				<property>
+						<name>mapreduce.framework.name</name>
+						<value>yarn</value>
+				</property>
+		</configuration>	
+	
+	F) yarn-site.xml
+		sudo vi $HADOOP_HOME/etc/hadoop/yarn-site.xml
+		<configuration>
+				<property>
+						<name>yarn.nodemanager.aux-services</name>
+						<value>mapreduce_shuffle</value>
+				</property>
+				<property>
+						<name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+						<value>org.apache.hadoop.mapred.ShuffleHandler</value>
+				</property>
+				<property>
+						<name>yarn.resourcemanager.hostname</name>
+						<value>127.0.0.1</value>
+				</property>
+				<property>
+						<name>yarn.acl.enable</name>
+17. Create dir
+		sudo mkdir -p /home/hadoop/tmpdata
+		sudo chmod 777  /home/hadoop/tmpdata
+
+18. Format HDFS
+		hdfs namenode -format
+		
+19. Start HDFS
+	cd $HADOOP_HOME/sbin/
+	
+	./start-dfs.sh
+	./start-yarn.sh
+	
+	./start-all.sh
+	
+	Check the HDFS & YARN are running with commend: jps
+		hadoopuser@Ira-Laptop:~/hadoop-3.2.3/sbin$ jps
+		3633 NameNode
+		4309 NodeManager
+		3733 DataNode
+		3881 SecondaryNameNode
+		4665 Jps
+		4202 ResourceManager
+		hadoopuser@Ira-Laptop:~/hadoop-3.2.3/sbin$
+
+	- Check on URL
+	http://localhost:9870/dfshealth.html#tab-overview
+
+20. SPARK setup
+	wget https://archive.apache.org/dist/spark/spark-3.0.1/spark-3.0.1-bin-hadoop3.2.tgz
+	
+	tar xzf spark-3.0.1-bin-hadoop3.2.tgz
+
+	Add below in .bashrc
+		- Spark Setup
+		export SPARK_HOME=/home/hadoopuser/spark-3.0.1-bin-hadoop3.2
+		export PATH=$PATH:$SPARK_HOME/bin:$SPARK_HOME/sbin
+		export PYTHONPATH=$PYTHONPAH:/usr/bin/python3
+		export PYSPARK_PYTHON=python3
+		
+	source .bashrc
+
+21. Setup PySpark notebook integrating with HDFS on WSL ubuntu
+	- Exit from the hadoopuser
+	
+	sudo apt install python3-pip
+	sudo apt install jupyter-core
+	
+22. Install below python packages as hadoopuser
+		pip install jupyter
+		pip install pyspark==3.0.1
+		pip install pandas==1.5.3		- Latest pandas version is not compatible for iteritem
+		pip install findspark
+		pip install fsspec
+		pip install pyarrow
+		pip install openpyxl
+		
+23. Add below in the .bashrc file of root user [not hadoopuser]
+		alias jupyter-lab="/home/hadoopuser/.local/bin/jupyter-lab"
+	
+	source .bashrc
+		
+24. Add below in the .bashrc file of hadoopuser
+		export CLASSPATH=`$HADOOP_HOME/bin/hdfs classpath --glob`
+		
+	source .bashrc
+	
+25. Launch jupyter notebook from the WSL command prompt
+	hadoopuser@Ira-Laptop:~$ jupyter-lab --no-browser
+
+	This will give the log with the URL. Copy the URL in the browser
+
+26. Here are the sample commands to copy files from host machine to HDFS:
+	hadoopuser@Ira-Laptop:/mnt/c/bds$ hdfs dfs -copyFromLocal taxi_zone_lookup.csv /bds/
+	hadoopuser@Ira-Laptop:/mnt/c/bds$ hdfs dfs -copyFromLocal yellow_tripdata_2020-06.xlsx /bds/
+	
+27. Notes:
+	- After modification of .bashrc, run the following command to take the changes in effect immediately
+		source .bashrc
+	- These notes will setup a single node Hadoop cluster with PySpark setup including tools like Jupyter notebook for coding. 
+	- It is based on Ubuntu system, WSL on windows machine.
+
+
+
+KAFKA setup: [hadoopuser]
+1. wget https://downloads.apache.org/kafka/3.5.1/kafka_2.12-3.5.1.tgz
+
+2. tar xzf kafka_2.12-3.2.1.tgz
+
+3. vi .bashrc
+	export KAFKA_HOME=/home/hadoopuser/kafka_2.12-3.5.1
+	export PATH=$PATH:$KAFKA_HOME/bin:$KAFKA_HOME/bin
+
+4.	sudo apt-get install -y zookeeperd
+
+5.	sudo vi /etc/systemd/system/zookeeper.service
+	[Unit]
+	Description=Apache Zookeeper server
+	Documentation=http://zookeeper.apache.org
+	Requires=network.target remote-fs.target
+	After=network.target remote-fs.target
+	[Service]
+	Type=simple
+	ExecStart=/home/user/kafka_2.12-3.5.1/bin/zookeeper-server-start.sh /home/user/kafka_2.12-3.5.1/config/zookeeper.properties
+	ExecStop=/home/user/kafka_2.12-3.5.1/bin/zookeeper-server-stop.sh
+	Restart=on-abnormal
+	[Install]
+
+6. sudo vi /etc/systemd/system/kafka.service
+	[Unit]
+	Description=Apache Kafka Server
+	Documentation=http://kafka.apache.org/documentation.html
+	Requires=zookeeper.service
+	[Service]
+	Type=simple
+	Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
+	ExecStart=/home/user/kafka_2.12-3.5.1/bin/kafka-server-start.sh /home/user/kafka_2.12-3.5.1/config/server.properties
+	ExecStop=/home/user/kafka_2.12-3.5.1/bin/kafka-server-stop.sh
+	[Install]
+	WantedBy=multi-user.target
+
+7.	Run below:
+	sudo systemctl enable zookeeper
+	sudo systemctl start zookeeper
+	sudo systemctl status zookeeper
+
+8. Run below:	
+	sudo systemctl enable kafka
+	sudo systemctl start kafka
+	sudo systemctl status kafka
+
+9. Create a kafka topic:
+	kafka-topics.sh --bootstrap-server localhost:9092 --topic first_topic --create --partitions 3 --replication-factor 1
+
+10. Start Producer in one session:
+	kafka-console-producer.sh --broker-list localhost:9092 --topic first_topic
+	
+	- Whatever you type, it will be shown in consumer session as it receives
+
+11. Start Consumer in one session:
+	kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic first_topic --from-beginning
