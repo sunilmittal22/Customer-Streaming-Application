@@ -76,7 +76,7 @@ Purpose	: Setup Hadoop, Spark, Jupytet notebook, KAFKA on WSL Ubuntu
 	
 	tar xzf hadoop-3.2.3.tar.gz
 	
-14. Add User to the Sudoers Group
+14. sudo 
 	- Switch to root user - yogesh
 	sudo usermod -aG sudo hadoopuser
 	
@@ -159,6 +159,8 @@ Purpose	: Setup Hadoop, Spark, Jupytet notebook, KAFKA on WSL Ubuntu
 				</property>
 				<property>
 						<name>yarn.acl.enable</name>
+						<value>true</value>
+				</property>
 17. Create dir
 		sudo mkdir -p /home/hadoop/tmpdata
 		sudo chmod 777  /home/hadoop/tmpdata
@@ -222,7 +224,7 @@ Purpose	: Setup Hadoop, Spark, Jupytet notebook, KAFKA on WSL Ubuntu
 	source .bashrc
 		
 24. Add below in the .bashrc file of hadoopuser
-		export CLASSPATH=`$HADOOP_HOME/bin/hdfs classpath --glob`
+		export CLASSPATH='$HADOOP_HOME/bin/hdfs classpath --glob'
 		
 	source .bashrc
 	
@@ -246,7 +248,7 @@ Purpose	: Setup Hadoop, Spark, Jupytet notebook, KAFKA on WSL Ubuntu
 KAFKA setup: [hadoopuser]
 1. wget https://downloads.apache.org/kafka/3.5.1/kafka_2.12-3.5.1.tgz
 
-2. tar xzf kafka_2.12-3.2.1.tgz
+2. tar xzf kafka_2.12-3.5.1.tgz
 
 3. vi .bashrc
 	export KAFKA_HOME=/home/hadoopuser/kafka_2.12-3.5.1
